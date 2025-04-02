@@ -7,6 +7,7 @@ import datetime
 import time
 import logging
 from dotenv import load_dotenv
+from app import app, scheduler, db
 
 # 初始化Flask应用
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
