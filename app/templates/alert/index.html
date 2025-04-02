@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+
+{% block title %}提醒列表{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>提醒列表</h1>
+        <a href="{{ url_for('alert.add') }}" class="btn btn-primary">添加提醒</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>股票</th>
+                    <th>市场</th>
+                    <th>类型</th>
+                    <th>条件</th>
+                    <th>值</th>
+                    <th>状态</th>
+                    <th>触发时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr data-id="{{ alert.id }}">
+                    <td>{{ alert.id }}</td>
+                    <td>
+                        <a href="{{ url_for('stock.detail', stock_id=alert.stock.id) }}">
+                            {{ alert.stock.name }} ({{ alert.stock.code }})
+                        </a>
+                    </td>
+                    <td>{{ alert.stock.market }}</td>
+                    <td>
+                        {% if alert.type == 'price' %}价格
+                        {% elif alert.type == 'change_percent' %}涨跌幅
+                        {% elif alert.type == 'volume' %}成交量
+                        {% elif alert.type == 'turnover' %}成交额
+                        {% elif alert.type == 'pe_ratio' %}市盈率
+                        {% elif alert.type == 'pb_ratio' %}市净率
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if alert.condition == '>' %}大于
+                        {% elif alert.condition == '<' %}小于
+                        {% elif alert.condition == '>=' %}大于等于
+                        {% elif alert.condition == '<=' %}小于等于
+                        {% elif alert.condition == '==' %}等于
+                        {% endif %}
+                    </td>
+                    <td>{{ alert.value }}</td>
+                    <td>
+                        {% if alert.is_triggered %}
+                        <span class="badge bg-danger">已触发</span>
+                        {% elif not alert.is_active %}
+                        <span class="badge bg-secondary">已禁用</span>
+                        {% else %}
+                        <span class="badge bg-success">监控中</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ alert.last_triggered.strftime('%Y-%m-%d %H:%M:%S') if alert.last_triggered else '未触发' }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-primary toggle-btn" data-id="{{ alert.id }}">
+                                {% if alert.is_active %}禁用{% else %}启用{% endif %}
+                            </button>
+                            {% if alert.is_triggered %}
+                            <button class="btn btn-sm btn-warning reset-btn" data-id="{{ alert.id }}">重置</button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-danger delete-btn" data-id="{{ alert.id }}">删除</button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center">暂无提醒，请添加</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 确认删除模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这个提醒吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 切换提醒状态
+        $('.toggle-btn').on('click', function() {
+            const alertId = $(this).data('id');
+            
+            $.ajax({
+                url: `/alert/toggle/${alertId}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        alert('状态已更新');
+                        window.location.reload();
+                    } else {
+                        alert('更新失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 重置提醒
+        $('.reset-btn').on('click', function() {
+            const alertId = $(this).data('id');
+            
+            $.ajax({
+                url: `/alert/reset/${alertId}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        alert('提醒已重置');
+                        window.location.reload();
+                    } else {
+                        alert('重置失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 删除提醒
+        let alertIdToDelete;
+        $('.delete-btn').on('click', function() {
+            alertIdToDelete = $(this).data('id');
+            $('#deleteModal').modal('show');
+        });
+        
+        $('#confirmDelete').on('click', function() {
+            $.ajax({
+                url: `/alert/delete/${alertIdToDelete}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $(`tr[data-id="${alertIdToDelete}"]`).remove();
+                        $('#deleteModal').modal('hide');
+                        alert('提醒已删除');
+                    } else {
+                        alert('删除失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,256 @@
+{% extends "layout.html" %}
+
+{% block title %}股票列表{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>股票列表</h1>
+        <a href="{{ url_for('stock.add') }}" class="btn btn-primary">添加股票</a>
+    </div>
+
+    <div class="mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>股票搜索</h5>
+            </div>
+            <div class="card-body">
+                <form id="searchForm" class="row g-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="keyword" placeholder="输入股票代码或名称">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="market">
+                            <option value="A股" selected>A股</option>
+                            <option value="港股">港股</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">搜索</button>
+                    </div>
+                </form>
+                <div id="searchResults" class="mt-3" style="display: none;">
+                    <h6>搜索结果：</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>代码</th>
+                                    <th>名称</th>
+                                    <th>最新价</th>
+                                    <th>涨跌幅</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="searchResultsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>代码</th>
+                    <th>名称</th>
+                    <th>市场</th>
+                    <th>最新价</th>
+                    <th>涨跌幅</th>
+                    <th>成交量</th>
+                    <th>最后更新</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}
+                <tr data-id="{{ stock.id }}">
+                    <td>{{ stock.code }}</td>
+                    <td>{{ stock.name }}</td>
+                    <td>{{ stock.market }}</td>
+                    <td class="price">{{ stock.price }}</td>
+                    <td class="change-percent {% if stock.change_percent > 0 %}text-success{% elif stock.change_percent < 0 %}text-danger{% endif %}">
+                        {{ stock.change_percent }}%
+                    </td>
+                    <td>{{ stock.volume }}</td>
+                    <td>{{ stock.last_update.strftime('%Y-%m-%d %H:%M:%S') if stock.last_update else '尚未更新' }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('stock.detail', stock_id=stock.id) }}" class="btn btn-sm btn-info">详情</a>
+                            <button class="btn btn-sm btn-primary update-btn" data-id="{{ stock.id }}">更新</button>
+                            <button class="btn btn-sm btn-danger delete-btn" data-id="{{ stock.id }}">删除</button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center">暂无股票数据，请添加</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 确认删除模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这只股票吗？相关提醒也将一并删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 更新股票数据
+        $('.update-btn').on('click', function() {
+            const stockId = $(this).data('id');
+            const row = $(`tr[data-id="${stockId}"]`);
+            
+            $.ajax({
+                url: `/stock/update/${stockId}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        // 更新行数据
+                        row.find('.price').text(response.stock.price);
+                        const changePercent = response.stock.change_percent;
+                        const changePercentCell = row.find('.change-percent');
+                        changePercentCell.text(changePercent + '%');
+                        
+                        // 更新涨跌颜色
+                        changePercentCell.removeClass('text-success text-danger');
+                        if (changePercent > 0) {
+                            changePercentCell.addClass('text-success');
+                        } else if (changePercent < 0) {
+                            changePercentCell.addClass('text-danger');
+                        }
+                        
+                        alert('股票数据已更新');
+                    } else {
+                        alert('更新失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 删除股票
+        let stockIdToDelete;
+        $('.delete-btn').on('click', function() {
+            stockIdToDelete = $(this).data('id');
+            $('#deleteModal').modal('show');
+        });
+        
+        $('#confirmDelete').on('click', function() {
+            $.ajax({
+                url: `/stock/delete/${stockIdToDelete}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $(`tr[data-id="${stockIdToDelete}"]`).remove();
+                        $('#deleteModal').modal('hide');
+                        alert('股票已删除');
+                    } else {
+                        alert('删除失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 搜索股票
+        $('#searchForm').on('submit', function(e) {
+            e.preventDefault();
+            const keyword = $('#keyword').val();
+            const market = $('#market').val();
+            
+            if (!keyword) {
+                alert('请输入关键词');
+                return;
+            }
+            
+            $.ajax({
+                url: '/stock/search',
+                type: 'POST',
+                data: { keyword: keyword, market: market },
+                success: function(response) {
+                    if (response.success) {
+                        const stocks = response.stocks;
+                        $('#searchResultsBody').empty();
+                        
+                        if (stocks.length === 0) {
+                            $('#searchResultsBody').html('<tr><td colspan="5" class="text-center">未找到匹配的股票</td></tr>');
+                        } else {
+                            stocks.forEach(function(stock) {
+                                const row = `
+                                    <tr>
+                                        <td>${stock.code}</td>
+                                        <td>${stock.name}</td>
+                                        <td>${stock.price}</td>
+                                        <td class="${stock.change_percent > 0 ? 'text-success' : (stock.change_percent < 0 ? 'text-danger' : '')}">${stock.change_percent}%</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success add-stock-btn" data-code="${stock.code}" data-market="${market}">添加</button>
+                                        </td>
+                                    </tr>
+                                `;
+                                $('#searchResultsBody').append(row);
+                            });
+                        }
+                        
+                        $('#searchResults').show();
+                    } else {
+                        alert('搜索失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 从搜索结果添加股票
+        $(document).on('click', '.add-stock-btn', function() {
+            const code = $(this).data('code');
+            const market = $(this).data('market');
+            
+            $.ajax({
+                url: '/stock/add',
+                type: 'POST',
+                data: { code: code, market: market },
+                success: function(response) {
+                    if (response.success) {
+                        alert('股票添加成功');
+                        window.location.reload();
+                    } else {
+                        alert('添加失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

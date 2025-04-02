@@ -1,0 +1,413 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ stock.name }} ({{ stock.code }}){% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ stock.name }} <small class="text-muted">({{ stock.code }})</small></h1>
+        <div>
+            <a href="{{ url_for('stock.index') }}" class="btn btn-secondary">返回列表</a>
+            <button id="refreshBtn" class="btn btn-primary">刷新数据</button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>基本信息</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th>股票代码</th>
+                                <td>{{ stock.code }}</td>
+                            </tr>
+                            <tr>
+                                <th>股票名称</th>
+                                <td>{{ stock.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>市场</th>
+                                <td>{{ stock.market }}</td>
+                            </tr>
+                            <tr>
+                                <th>当前价格</th>
+                                <td id="price">{{ stock.price }}</td>
+                            </tr>
+                            <tr>
+                                <th>涨跌幅</th>
+                                <td id="changePercent" class="{% if stock.change_percent > 0 %}text-success{% elif stock.change_percent < 0 %}text-danger{% endif %}">
+                                    {{ stock.change_percent }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>成交量</th>
+                                <td id="volume">{{ stock.volume }}</td>
+                            </tr>
+                            <tr>
+                                <th>成交额</th>
+                                <td id="turnover">{{ stock.turnover }}</td>
+                            </tr>
+                            <tr>
+                                <th>市盈率</th>
+                                <td id="peRatio">{{ stock.pe_ratio if stock.pe_ratio else '暂无' }}</td>
+                            </tr>
+                            <tr>
+                                <th>市净率</th>
+                                <td id="pbRatio">{{ stock.pb_ratio if stock.pb_ratio else '暂无' }}</td>
+                            </tr>
+                            <tr>
+                                <th>最后更新时间</th>
+                                <td id="lastUpdate">{{ stock.last_update.strftime('%Y-%m-%d %H:%M:%S') if stock.last_update else '暂无' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>设置提醒</h5>
+                </div>
+                <div class="card-body">
+                    <form id="alertForm">
+                        <div class="mb-3">
+                            <label for="alertType" class="form-label">提醒类型</label>
+                            <select class="form-select" id="alertType">
+                                <option value="price">价格</option>
+                                <option value="change_percent">涨跌幅</option>
+                                <option value="volume">成交量</option>
+                                <option value="turnover">成交额</option>
+                                <option value="pe_ratio">市盈率</option>
+                                <option value="pb_ratio">市净率</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="condition" class="form-label">条件</label>
+                            <select class="form-select" id="condition">
+                                <option value=">">大于</option>
+                                <option value="<">小于</option>
+                                <option value=">=">大于等于</option>
+                                <option value="<=">小于等于</option>
+                                <option value="==">等于</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="value" class="form-label">数值</label>
+                            <input type="number" class="form-control" id="value" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-success">添加提醒</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>股票历史走势 (30天)</h5>
+        </div>
+        <div class="card-body">
+            <div id="stockChart" style="width: 100%; height: 400px;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5>已设置的提醒</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>类型</th>
+                        <th>条件</th>
+                        <th>值</th>
+                        <th>状态</th>
+                        <th>触发时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="alertsTable">
+                    {% for alert in stock.alerts %}
+                    <tr data-id="{{ alert.id }}">
+                        <td>{{ alert.id }}</td>
+                        <td>
+                            {% if alert.type == 'price' %}价格
+                            {% elif alert.type == 'change_percent' %}涨跌幅
+                            {% elif alert.type == 'volume' %}成交量
+                            {% elif alert.type == 'turnover' %}成交额
+                            {% elif alert.type == 'pe_ratio' %}市盈率
+                            {% elif alert.type == 'pb_ratio' %}市净率
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if alert.condition == '>' %}大于
+                            {% elif alert.condition == '<' %}小于
+                            {% elif alert.condition == '>=' %}大于等于
+                            {% elif alert.condition == '<=' %}小于等于
+                            {% elif alert.condition == '==' %}等于
+                            {% endif %}
+                        </td>
+                        <td>{{ alert.value }}</td>
+                        <td>
+                            {% if alert.is_triggered %}
+                            <span class="badge bg-danger">已触发</span>
+                            {% elif not alert.is_active %}
+                            <span class="badge bg-secondary">已禁用</span>
+                            {% else %}
+                            <span class="badge bg-success">监控中</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ alert.last_triggered.strftime('%Y-%m-%d %H:%M:%S') if alert.last_triggered else '未触发' }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-primary toggle-btn" data-id="{{ alert.id }}">
+                                    {% if alert.is_active %}禁用{% else %}启用{% endif %}
+                                </button>
+                                {% if alert.is_triggered %}
+                                <button class="btn btn-sm btn-warning reset-btn" data-id="{{ alert.id }}">重置</button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-danger delete-alert-btn" data-id="{{ alert.id }}">删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">暂无提醒，请添加</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 确认删除模态框 -->
+<div class="modal fade" id="deleteAlertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这个提醒吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteAlert">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/plotly.js@2.27.1/dist/plotly.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // 绘制股票历史走势图
+        const history = {{ history|tojson }};
+        if (history.length > 0) {
+            const dates = history.map(item => item.date);
+            const prices = history.map(item => item.close);
+            const volumes = history.map(item => item.volume);
+            
+            const trace1 = {
+                x: dates,
+                y: prices,
+                name: '收盘价',
+                type: 'scatter',
+                yaxis: 'y',
+                line: {
+                    color: 'rgb(0, 123, 255)',
+                    width: 2
+                }
+            };
+            
+            const trace2 = {
+                x: dates,
+                y: volumes,
+                name: '成交量',
+                type: 'bar',
+                yaxis: 'y2',
+                marker: {
+                    color: 'rgba(100, 100, 100, 0.5)'
+                }
+            };
+            
+            const layout = {
+                title: '{{ stock.name }} ({{ stock.code }}) 历史走势',
+                yaxis: {
+                    title: '价格',
+                    titlefont: {color: 'rgb(0, 123, 255)'},
+                    tickfont: {color: 'rgb(0, 123, 255)'}
+                },
+                yaxis2: {
+                    title: '成交量',
+                    titlefont: {color: 'rgb(100, 100, 100)'},
+                    tickfont: {color: 'rgb(100, 100, 100)'},
+                    overlaying: 'y',
+                    side: 'right'
+                },
+                margin: {
+                    l: 50,
+                    r: 50,
+                    b: 50,
+                    t: 50,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot('stockChart', [trace1, trace2], layout);
+        } else {
+            $('#stockChart').html('<div class="alert alert-info">暂无历史数据</div>');
+        }
+        
+        // 刷新股票数据
+        $('#refreshBtn').on('click', function() {
+            $.ajax({
+                url: '/stock/update/{{ stock.id }}',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#price').text(response.stock.price);
+                        const changePercent = response.stock.change_percent;
+                        $('#changePercent').text(changePercent + '%');
+                        
+                        // 更新涨跌颜色
+                        $('#changePercent').removeClass('text-success text-danger');
+                        if (changePercent > 0) {
+                            $('#changePercent').addClass('text-success');
+                        } else if (changePercent < 0) {
+                            $('#changePercent').addClass('text-danger');
+                        }
+                        
+                        $('#volume').text(response.stock.volume);
+                        $('#turnover').text(response.stock.turnover);
+                        $('#peRatio').text(response.stock.pe_ratio || '暂无');
+                        $('#pbRatio').text(response.stock.pb_ratio || '暂无');
+                        $('#lastUpdate').text(response.stock.last_update);
+                        
+                        alert('股票数据已更新');
+                    } else {
+                        alert('更新失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 添加提醒
+        $('#alertForm').on('submit', function(e) {
+            e.preventDefault();
+            const type = $('#alertType').val();
+            const condition = $('#condition').val();
+            const value = $('#value').val();
+            
+            if (!value) {
+                alert('请输入提醒值');
+                return;
+            }
+            
+            $.ajax({
+                url: '/alert/add',
+                type: 'POST',
+                data: {
+                    stock_id: {{ stock.id }},
+                    type: type,
+                    condition: condition,
+                    value: value
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('提醒添加成功');
+                        window.location.reload();
+                    } else {
+                        alert('添加失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 切换提醒状态
+        $('.toggle-btn').on('click', function() {
+            const alertId = $(this).data('id');
+            
+            $.ajax({
+                url: `/alert/toggle/${alertId}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        alert('状态已更新');
+                        window.location.reload();
+                    } else {
+                        alert('更新失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 重置提醒
+        $('.reset-btn').on('click', function() {
+            const alertId = $(this).data('id');
+            
+            $.ajax({
+                url: `/alert/reset/${alertId}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        alert('提醒已重置');
+                        window.location.reload();
+                    } else {
+                        alert('重置失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+        
+        // 删除提醒
+        let alertIdToDelete;
+        $('.delete-alert-btn').on('click', function() {
+            alertIdToDelete = $(this).data('id');
+            $('#deleteAlertModal').modal('show');
+        });
+        
+        $('#confirmDeleteAlert').on('click', function() {
+            $.ajax({
+                url: `/alert/delete/${alertIdToDelete}`,
+                type: 'POST',
+                success: function(response) {
+                    if (response.success) {
+                        $(`tr[data-id="${alertIdToDelete}"]`).remove();
+                        $('#deleteAlertModal').modal('hide');
+                        alert('提醒已删除');
+                    } else {
+                        alert('删除失败: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('请求失败，请稍后再试');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 
