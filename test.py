@@ -17,3 +17,5 @@ print(stock_hk_spot)
 pip install -r requirements.txt --index-url https://pypi.org/simple
 
 pip install akshare --upgrade --index-url https://mirrors.aliyun.com/pypi/simple
+
+pip install pandas==2.0.3 --index-url https://pypi.org/simple
