@@ -1,10 +1,10 @@
 Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
-APScheduler==3.10.4
-numpy==1.26.0
-pandas==2.1.0
+numpy==1.24.4  # 尝试 numpy 1.24.x
+pandas==2.0.3  # 尝试 pandas 2.0.x
 plotly==5.18.0
 dash==2.14.2
 requests==2.31.0
 python-dotenv==1.0.0
 akshare==1.16.69
+psycopg2-binary # Added for PostgreSQL

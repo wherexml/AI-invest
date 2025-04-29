@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "wsgi.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "15mb", "runtime": "python3.9" }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/app/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "wsgi.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/update_stocks?secret=$CRON_SECRET",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/check_alerts?secret=$CRON_SECRET",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "FLASK_ENV": "production",
+    "CRON_SECRET": "@cron_secret"
+  }
+} 
