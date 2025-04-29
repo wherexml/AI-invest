@@ -16,11 +16,10 @@
 - 数据库：PostgreSQL (需要云数据库服务, 如 Vercel Postgres, Neon)
 - 前端：Bootstrap 5 + jQuery
 - 数据源：AKshare
-- 任务调度：Vercel Cron Jobs
 
 ## Vercel 部署
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F<你的GitHub用户名>%2F<你的仓库名>&env=DATABASE_URL,CRON_SECRET&envDescription=需要设置数据库连接URL和Cron安全密钥&project-name=ai-investment-reminder&repository-name=ai-investment-reminder&demo-title=AI%20Investment%20Reminder&demo-description=A%20Flask%20app%20for%20stock%20alerts.&demo-url=YOUR_DEPLOYED_URL_HERE&integration-ids=oac_VercelPostgres)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F<你的GitHub用户名>%2F<你的仓库名>&env=DATABASE_URL&envDescription=需要设置数据库连接URL&project-name=ai-investment-reminder&repository-name=ai-investment-reminder&demo-title=AI%20Investment%20Reminder&demo-description=A%20Flask%20app%20for%20stock%20alerts.&demo-url=YOUR_DEPLOYED_URL_HERE&integration-ids=oac_VercelPostgres)
 
 **点击上方按钮一键部署到您的 Vercel 账户。**
 
@@ -30,7 +29,6 @@
 2.  **云数据库:** 您需要一个 PostgreSQL 数据库。推荐使用 Vercel Postgres：
     *   在 Vercel 项目创建过程中或之后，可以通过 Vercel 控制台的 "Storage" 选项卡添加 Vercel Postgres 数据库。Vercel 会自动为您设置 `DATABASE_URL` 环境变量。
     *   如果您使用其他云数据库 (如 Neon, Supabase)，请获取其连接字符串 (通常以 `postgresql://...` 开头)。
-3.  **Cron Secret:** 生成一个强随机字符串作为 Cron 作业的安全密钥。这个密钥将用于验证来自 Vercel Cron 的请求。
 
 **部署步骤:**
 
@@ -39,7 +37,6 @@
 3.  Vercel 会提示您克隆仓库并创建一个新项目。
 4.  **配置环境变量:**
     *   **`DATABASE_URL`:** 如果您在 Vercel 中创建了 Postgres 数据库，它通常会自动填充。如果使用外部数据库，请粘贴您的 PostgreSQL 连接字符串。
-    *   **`CRON_SECRET`:** 粘贴您生成的强随机字符串。
     *   *(可选)* `SECRET_KEY`: 如果您的 Flask 应用使用了会话，可以设置一个 Flask 的 `SECRET_KEY`。
 5.  点击 "Deploy"。
 6.  Vercel 将开始构建和部署您的应用。

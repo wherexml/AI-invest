@@ -43,13 +43,13 @@ logger = logging.getLogger(__name__)
 
 # 导入视图和模型 - 确保在 db 初始化之后导入
 from app.models import alert, stock
-from app.controllers import alert_controller, stock_controller, cron_controller # 添加 cron_controller
+from app.controllers import alert_controller, stock_controller # Removed cron_controller
 from app.utils import stock_data
 
 # 注册蓝图
 app.register_blueprint(alert_controller.alert_bp)
 app.register_blueprint(stock_controller.stock_bp)
-app.register_blueprint(cron_controller.cron_bp) # 注册 cron_controller 蓝图
+# app.register_blueprint(cron_controller.cron_bp) # Removed cron blueprint registration
 
 # 注意：在 Vercel 上，你不需要 app.run() 或者创建数据库表的代码在这里。
 # Vercel 的构建过程或你的 wsgi.py 会处理启动。
