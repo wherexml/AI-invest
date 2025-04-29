@@ -18,7 +18,8 @@
     }
   ],
   "env": {
-    "DATABASE_URL": "@database_url",
+    // Ensure this variable points to the secret created by Vercel Postgres integration
+    "DATABASE_URL": "@POSTGRES_URL", 
     "FLASK_ENV": "production"
   }
-} 
+}
